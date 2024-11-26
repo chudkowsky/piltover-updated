@@ -30,9 +30,7 @@ fn state_update_ok() {
         'config_hash', // Header.
         0, // appc to sn messages segment.
         0, // sn to appc messages segment.
-    ]
-        .span();
-
+    ];
     mock.update(valid_state_update);
 
     let (state_root, block_number, block_hash) = mock.get_state();
@@ -57,8 +55,7 @@ fn state_update_invalid_block_number() {
         'config_hash', // Header.
         0, // appc to sn messages segment.
         0, // sn to appc messages segment.
-    ]
-        .span();
+    ];
 
     mock.update(invalid_state_update);
 }
@@ -78,8 +75,7 @@ fn state_update_invalid_previous_root() {
         'config_hash', // Header.
         0, // appc to sn messages segment.
         0, // sn to appc messages segment.
-    ]
-        .span();
+    ];
 
     mock.update(invalid_state_update);
 }

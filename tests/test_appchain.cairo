@@ -1,3 +1,4 @@
+use core::iter::IntoIterator;
 use core::result::ResultTrait;
 //! Appchain testing.
 //!
@@ -9,7 +10,7 @@ use piltover::messaging::{IMessaging, IMessagingDispatcherTrait, IMessagingDispa
 use piltover::mocks::{
     fact_registry_mock, IFactRegistryMockDispatcher, IFactRegistryMockDispatcherTrait
 }; // To change when Herodotus finishes implementing FactRegistry.
-use piltover::snos_output::ProgramOutput;
+use piltover::snos_output::{StarknetOsOutput,deserialize_os_output};
 use snforge_std as snf;
 use snforge_std::{ContractClassTrait, EventSpy, EventSpyAssertionsTrait};
 use starknet::ContractAddress;
@@ -47,68 +48,62 @@ fn deploy_fact_registry_mock() -> IFactRegistryMockDispatcher {
 
 /// State update taken from mainnet:
 /// <https://etherscan.io/tx/0xc1351dac330d1d66f98efc99d08d360c2e9bc3d772c09d228027fcded8f02458>.
-fn get_state_update() -> Span<felt252> {
-    let mut felts = array![
-        // Header.
-        2308509181970242579758367820250590423941246005755407149765148974993919671160,
-        1400208033537979038273563301858781654076731580449174584651309975875760580865,
-        535683,
-        2885081770536693045243577840233106668867645710434679941076039698247255604327,
-        2590421891839256512113614983194993186457498815986333310670788206383913888162,
-        // appc to sn messages segment.
-        7,
-        3256441166037631918262930812410838598500200462657642943867372734773841898370,
-        993696174272377493693496825928908586134624850969,
-        4,
+fn get_state_update() -> Array<felt252> {
+    let felts = array![
+        53449590396963646766009485385379730959979179211486300186379137196479767183,
+        1712053587499788975540345387367567780710750510322614487748929664535416562566,
+        280125,
+        280126,
+        2374686737816592439245506651334336789543615409549458945660453008193094814449,
+        1024686636360347136104625158544414459114239008539095325503255431434842354951,
         0,
-        917360325178274450223200079540424150242461675748,
-        300000000000000,
+        8868593919264901768958912247765226517850727970326290266005120699201631282,
         0,
-        // sn to appc messages segment.
-        8,
-        993696174272377493693496825928908586134624850969,
-        3256441166037631918262930812410838598500200462657642943867372734773841898370,
-        1629170,
-        1285101517810983806491589552491143496277809242732141897358598292095611420389,
-        3,
-        1905350129216923298156817020930524704572804705313566176282348575247442538663,
-        100000000000000000,
+        1,
         0,
-    ]
-        .span();
-
+        0,
+        1,
+        1,
+        1,
+        0,
+        0,
+        280116,
+        0,
+        165924440423783039404569239228113237865139311794365673531892275010207300321,
+        0
+    ];
     felts
 }
 
 #[test]
 fn snos_output_deser() {
-    let mut felts = get_state_update();
-    let output: ProgramOutput = Serde::deserialize(ref felts).unwrap();
+    let mut felts = get_state_update().into_iter();
+    let output: StarknetOsOutput = deserialize_os_output(ref felts);
 
     assert(
         output
-            .prev_state_root == 2308509181970242579758367820250590423941246005755407149765148974993919671160,
+            .initial_root == 53449590396963646766009485385379730959979179211486300186379137196479767183,
         'invalid prev root'
     );
     assert(
         output
-            .new_state_root == 1400208033537979038273563301858781654076731580449174584651309975875760580865,
+            .final_root == 1712053587499788975540345387367567780710750510322614487748929664535416562566,
         'invalid new root'
     );
-    assert(output.block_number == 535683, 'invalid block number');
+    assert(output.new_block_number == 280126, 'invalid block number');
     assert(
         output
-            .block_hash == 2885081770536693045243577840233106668867645710434679941076039698247255604327,
+            .new_block_hash == 1024686636360347136104625158544414459114239008539095325503255431434842354951,
         'invalid block hash'
     );
     assert(
         output
-            .config_hash == 2590421891839256512113614983194993186457498815986333310670788206383913888162,
+            .os_program_hash == 0,
         'invalid config hash'
     );
 
-    assert(output.message_to_starknet_segment.len() == 7, 'invalid msg to sn len');
-    assert(output.message_to_appchain_segment.len() == 8, 'invalid msg to appc len');
+    assert(output.messages_to_l1.len() == 0, 'invalid msg to sn len');
+    assert(output.messages_to_l2.len() == 0, 'invalid msg to appc len');
 }
 
 #[test]
@@ -192,7 +187,7 @@ fn update_state_ok() {
     let onchain_data_hash = 0x0;
     let onchain_data_size: u256 = 0;
     snf::start_cheat_caller_address(appchain.contract_address, c::OWNER());
-    appchain.update_state(output, onchain_data_hash, onchain_data_size);
+    appchain.update_state(output,array![].span(), onchain_data_hash, onchain_data_size);
 
     let expected_log_state_update = LogStateUpdate {
         state_root: 1400208033537979038273563301858781654076731580449174584651309975875760580865,
